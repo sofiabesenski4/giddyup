@@ -5,3 +5,7 @@ __pycache__/
 *.egg-info/
 .env
 workspace/
+
+# Ruby analyzer service
+services/analyzer/vendor/
+services/analyzer/.bundle/vendor/

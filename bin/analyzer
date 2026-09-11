@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Start the Ruby static-analysis service.
+set -euo pipefail
+cd "$(dirname "$0")/../services/analyzer"
+PORT="${ANALYZER_PORT:-9292}"
+exec mise exec -- bundle exec puma --port "$PORT" --environment production config.ru
