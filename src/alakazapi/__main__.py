@@ -29,12 +29,25 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--max-iterations", type=int, default=3)
     parser.add_argument("--budget-per-iteration", type=float, default=2.00)
     parser.add_argument("--session-budget", type=float, default=10.00)
+    parser.add_argument(
+        "--stub-code",
+        choices=["clean", "complex"],
+        default=None,
+        help="Replace Claude Code with a stub that writes known-clean or "
+        "known-overcomplicated Ruby. Spends no agent tokens.",
+    )
+    parser.add_argument("--analyzer-url", default="http://localhost:9292")
+    parser.add_argument("--flog-average-limit", type=float, default=20.0)
+    parser.add_argument("--smells-limit", type=int, default=3)
     return parser.parse_args(argv)
 
 
 def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
 
+    # A stubbed coder still runs the real planner and reviewer, so the key is
+    # needed either way — unless analysis short-circuits every pass, which we
+    # cannot know up front.
     if not os.environ.get("ANTHROPIC_API_KEY"):
         print(
             "ANTHROPIC_API_KEY is not set — the planner and reviewer nodes need it.",
@@ -51,12 +64,15 @@ def main(argv: list[str] | None = None) -> int:
             max_iterations=args.max_iterations,
             budget_per_iteration=args.budget_per_iteration,
             session_budget=args.session_budget,
+            analyzer_url=args.analyzer_url,
+            flog_average_limit=args.flog_average_limit,
+            smells_limit=args.smells_limit,
         )
     except ValueError as exc:
         print(str(exc), file=sys.stderr)
         return 1
 
-    asyncio.run(repl(config))
+    asyncio.run(repl(config, stub=args.stub_code))
     return 0
 
 

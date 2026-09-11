@@ -38,3 +38,44 @@ def test_finishes_immediately_when_a_node_recorded_an_error():
     s = state(verdict="revise", iteration=1, error="claude CLI not found")
 
     assert decide_after_review(s, config()) == "done"
+
+
+# ---- the analysis gate ---------------------------------------------------
+
+from alakazapi.routing import decide_after_analysis  # noqa: E402
+
+
+def test_complex_code_goes_straight_back_to_the_coder_skipping_the_reviewer():
+    s = state(analysis_verdict="complex", iteration=1)
+
+    assert decide_after_analysis(s, config()) == "code"
+
+
+def test_clean_code_proceeds_to_the_reviewer():
+    s = state(analysis_verdict="clean", iteration=1)
+
+    assert decide_after_analysis(s, config()) == "review"
+
+
+def test_skipped_analysis_proceeds_to_the_reviewer():
+    s = state(analysis_verdict="skipped", iteration=1)
+
+    assert decide_after_analysis(s, config()) == "review"
+
+
+def test_complex_code_stops_rather_than_looping_past_max_iterations():
+    s = state(analysis_verdict="complex", iteration=3)
+
+    assert decide_after_analysis(s, config(max_iterations=3)) == "done"
+
+
+def test_complex_code_stops_when_the_session_budget_is_exhausted():
+    s = state(analysis_verdict="complex", iteration=1, cost_usd=10.5)
+
+    assert decide_after_analysis(s, config(session_budget=10.0)) == "done"
+
+
+def test_an_errored_run_stops_without_reaching_the_reviewer():
+    s = state(analysis_verdict="clean", iteration=1, error="boom")
+
+    assert decide_after_analysis(s, config()) == "done"

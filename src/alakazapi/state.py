@@ -25,6 +25,8 @@ class PipelineState(TypedDict, total=False):
     cost_usd: float
     session_id: str | None
     error: str | None
+    analysis_verdict: str
+    analysis: dict
 
 
 def new_state(prompt: str) -> PipelineState:
@@ -39,4 +41,6 @@ def new_state(prompt: str) -> PipelineState:
         cost_usd=0.0,
         session_id=None,
         error=None,
+        analysis_verdict="skipped",
+        analysis={},
     )

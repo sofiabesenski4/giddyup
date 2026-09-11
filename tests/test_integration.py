@@ -41,4 +41,6 @@ async def test_a_full_run_plans_codes_reviews_and_reports_cost(config):
     assert final["iteration"] == 2, "should have looped once after the revise verdict"
     assert final["cost_usd"] == 0.80, "cost accumulates across both passes"
     assert final["session_id"] == "sess_1"
-    assert {e["type"] for e in events} == {"text", "tool"}
+    assert {e["type"] for e in events} == {"text", "tool", "analysis"}
+    # tmp_path holds no Ruby, so analysis passes through without an analyzer
+    assert final["analysis_verdict"] == "skipped"

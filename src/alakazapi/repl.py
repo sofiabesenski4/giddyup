@@ -10,9 +10,11 @@ from .graph import build_graph
 from .render import BOLD, DIM, RESET, render_event, render_summary
 from .state import PipelineState, new_state
 
-BANNER = f"""{BOLD}AlakazAPI{RESET} {DIM}— plan → code → review, with Claude Code doing the work{RESET}
-{DIM}repo: {{repo}}
-caps: {{iterations}} iterations · ${{per_iter}}/iteration · ${{session}}/session · MCP off
+BANNER = f"""{BOLD}AlakazAPI{RESET} {DIM}— plan → code → analyze → review{RESET}
+{DIM}repo:     {{repo}}
+coder:    {{coder}}
+analyzer: {{analyzer}}
+caps:     {{iterations}} iterations · ${{per_iter}}/iteration · ${{session}}/session · MCP off
 type a prompt, or /exit to quit{RESET}
 """
 
@@ -49,12 +51,23 @@ async def run_turn(
     return final
 
 
-async def repl(config: RunConfig, out: Callable[[str], None] = print) -> None:
+async def repl(
+    config: RunConfig,
+    out: Callable[[str], None] = print,
+    stub: str | None = None,
+) -> None:
     """Read prompts until EOF or /exit."""
-    graph = build_graph(config)
+    if stub:
+        from .nodes.stubs import stub_for
+
+        graph = build_graph(config, code=stub_for(stub))
+    else:
+        graph = build_graph(config)
     out(
         BANNER.format(
             repo=config.repo,
+            coder=f"stub:{stub}" if stub else "Claude Code (real)",
+            analyzer=config.analyzer_url,
             iterations=config.max_iterations,
             per_iter=f"{config.budget_per_iteration:.2f}",
             session=f"{config.session_budget:.2f}",

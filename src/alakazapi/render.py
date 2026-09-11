@@ -5,6 +5,8 @@ from __future__ import annotations
 from .state import PipelineState
 
 DIM = "\033[2m"
+YELLOW = "\033[33m"
+GREEN = "\033[32m"
 BOLD = "\033[1m"
 RED = "\033[31m"
 RESET = "\033[0m"
@@ -37,7 +39,26 @@ def render_event(event: dict) -> str | None:
         return f"{DIM}  · {event.get('name')}{suffix}{RESET}"
     if kind == "error":
         return f"{RED}  ! {event.get('text')}{RESET}"
+    if kind == "analysis":
+        return _analysis(event)
     return None
+
+
+def _analysis(event: dict) -> str:
+    verdict = event.get("verdict", "skipped")
+    detail = event.get("detail", "")
+    colour = {"clean": GREEN, "complex": YELLOW}.get(verdict, DIM)
+    head = f"{colour}  analysis: {verdict}{RESET}{DIM} {detail}{RESET}"
+
+    if verdict != "complex":
+        return head
+
+    # Only a failing verdict lists files: this is what goes back to the coder.
+    lines = [head]
+    for entry in event.get("files") or []:
+        for violation in entry.get("violations") or []:
+            lines.append(f"{DIM}    {entry.get('path')}: {violation.get('message')}{RESET}")
+    return "\n".join(lines)
 
 
 def render_summary(state: PipelineState) -> str:

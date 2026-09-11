@@ -4,17 +4,59 @@ A LangGraph pipeline that uses **Claude Code** (via `claude-agent-sdk`) as an ex
 node, driven from a terminal REPL.
 
 ```
-START → plan → code → review → ┬─ approved / budget hit / max iters → END
-                     ↑         └─ revise ──┐
-                     └────────────────────-┘
+START → plan → code → analyze → review → ┬─ approved → END
+                ↑         │              └─ revise ─┐
+                │         └─ violations ────────────┤
+                └───────────────────────────────────┘
 ```
 
 - **plan** — a cheap model turns your prompt into a concrete task spec.
 - **code** — Claude Code executes it against a real repo. The only node that touches your filesystem.
+- **analyze** — a Ruby microservice scores the changed Ruby with flog and reek.
 - **review** — a cheap model judges the result and either approves or sends feedback back to `code`.
 
-The revise edge loops back to `code`, not `plan`: it resumes the *same* Claude Code
-session, so Claude keeps its context instead of re-reading the repo each pass.
+Both revise edges loop back to `code`, not `plan`. The code node resumes the *same*
+Claude Code session, so Claude keeps its context instead of re-reading the repo.
+
+**Analysis short-circuits past the reviewer.** Code that fails its thresholds goes
+straight back to the coder carrying the concrete violations, so a failing loop costs
+zero model tokens and the agent gets something actionable rather than a bare rejection.
+
+## The analyzer service
+
+A Rack/Puma service in `services/analyzer/` that uses flog and reek as Ruby *libraries*
+rather than shelling out to their CLIs. Start it with:
+
+```bash
+./bin/analyzer
+```
+
+`POST /analyze` takes file contents, not paths, so the boundary makes no
+shared-filesystem assumption. Thresholds live on the Ruby side — the analyzer owns the
+definition of "clean":
+
+| Gate | Default | clean sample | complex sample |
+|---|---|---|---|
+| flog per-method average | ≤ 20 | 2.6 | 51.0 |
+| reek smells per file | ≤ 3 | 1 | 9 |
+
+The 3-smell allowance is deliberate: clean Ruby still scores 1 (`IrresponsibleModule`),
+so a zero gate would reject good code.
+
+Ruby is pinned with **mise** (`mise.toml`, 3.4.8) and gems are vendored with **bundler**
+into `services/analyzer/vendor/bundle`. No system Ruby, no system gems.
+
+## Exercising the pipeline without Claude Code tokens
+
+```bash
+./bin/analyzer &                                  # terminal 1
+.venv/bin/python -m alakazapi --stub-code clean   # passes analysis, reaches review
+.venv/bin/python -m alakazapi --stub-code complex # fails analysis, loops back to code
+```
+
+The stubs write real Ruby into the repo, so the analyzer has genuine input. The complex
+stub never improves, which makes the loop back into `code` observable until
+`max_iterations`.
 
 ## Install
 
@@ -54,7 +96,10 @@ silently inherit your global MCP servers and skills.
 ## Tests
 
 ```bash
-.venv/bin/python -m pytest
+.venv/bin/python -m pytest                                    # python
+cd services/analyzer && mise exec -- bundle exec rake test    # ruby
 ```
 
-No test spends money or touches a real repo — the SDK is faked at the boundary.
+No test spends money — the Claude Code SDK is faked at its boundary. The end-to-end
+tests in `tests/test_e2e_analyzer.py` run against the *real* analyzer over HTTP and skip
+automatically when it is not running.

@@ -45,3 +45,40 @@ def test_summary_leads_with_the_error_when_the_run_failed():
     state.update(iteration=1, cost_usd=0.0, error="CLINotFoundError: no claude")
 
     assert "CLINotFoundError: no claude" in render_summary(state)
+
+
+# ---- analysis events -----------------------------------------------------
+
+def test_renders_a_clean_analysis_verdict():
+    line = render_event({"type": "analysis", "verdict": "clean", "detail": "2 file(s)"})
+
+    assert "clean" in line
+    assert "2 file(s)" in line
+
+
+def test_renders_a_complex_verdict_with_the_violations():
+    line = render_event(
+        {
+            "type": "analysis",
+            "verdict": "complex",
+            "detail": "1 file(s)",
+            "files": [
+                {
+                    "path": "a.rb",
+                    "violations": [{"rule": "smells", "message": "9 code smells (limit 3)"}],
+                }
+            ],
+        }
+    )
+
+    assert "a.rb" in line
+    assert "9 code smells" in line
+
+
+def test_a_clean_verdict_does_not_list_files():
+    line = render_event(
+        {"type": "analysis", "verdict": "clean", "detail": "1 file(s)",
+         "files": [{"path": "a.rb", "violations": []}]}
+    )
+
+    assert "a.rb" not in line

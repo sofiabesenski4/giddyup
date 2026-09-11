@@ -8,6 +8,7 @@ from .config import RunConfig
 from .state import PipelineState
 
 Route = Literal["code", "done"]
+AnalysisRoute = Literal["code", "review", "done"]
 
 
 def decide_after_review(state: PipelineState, config: RunConfig) -> Route:
@@ -26,3 +27,26 @@ def decide_after_review(state: PipelineState, config: RunConfig) -> Route:
     if state.get("verdict") == "approved":
         return "done"
     return "code"
+
+
+def _must_stop(state: PipelineState, config: RunConfig) -> bool:
+    """The guardrails that outrank any verdict."""
+    return bool(
+        state.get("error")
+        or state.get("cost_usd", 0.0) >= config.session_budget
+        or state.get("iteration", 0) >= config.max_iterations
+    )
+
+
+def decide_after_analysis(state: PipelineState, config: RunConfig) -> AnalysisRoute:
+    """Decide where static analysis sends the run.
+
+    Code that fails its thresholds goes straight back to the coder with the
+    violations attached, skipping the reviewer entirely: the failure is already
+    objective, so paying a model to restate it would be waste.
+    """
+    if _must_stop(state, config):
+        return "done"
+    if state.get("analysis_verdict") == "complex":
+        return "code"
+    return "review"

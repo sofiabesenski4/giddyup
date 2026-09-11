@@ -25,6 +25,9 @@ class RunConfig:
     max_iterations: int = 3
     budget_per_iteration: float = 2.00
     session_budget: float = 10.00
+    analyzer_url: str = "http://localhost:9292"
+    flog_average_limit: float = 20.0
+    smells_limit: int = 3
 
     @classmethod
     def create(cls, repo: Path | None, base_dir: Path | None = None, **overrides) -> RunConfig:

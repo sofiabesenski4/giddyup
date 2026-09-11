@@ -28,12 +28,22 @@ async def stub_plan_node(state, config, **_):
     return {"plan": "THE PLAN"}
 
 
+def stub_analyze_node(verdict="clean", calls=None):
+    async def _node(state, config, **_):
+        if calls is not None:
+            calls.append(state.get("iteration", 0))
+        return {"analysis_verdict": verdict, "analysis": {}}
+
+    return _node
+
+
 async def test_runs_plan_then_code_then_review_and_stops_on_approval(config):
     calls: list = []
     graph = build_graph(
         config,
         plan=stub_plan_node,
         code=counting_code_node(calls),
+        analyze=stub_analyze_node(),
         review=scripted_review_node(["approved"]),
     )
 
@@ -50,6 +60,7 @@ async def test_loops_back_into_code_when_the_reviewer_asks_for_a_revision(config
         config,
         plan=stub_plan_node,
         code=counting_code_node(calls),
+        analyze=stub_analyze_node(),
         review=scripted_review_node(["revise", "approved"]),
     )
 
@@ -70,6 +81,7 @@ async def test_plans_only_once_no_matter_how_many_revisions(config):
         config,
         plan=counting_plan,
         code=counting_code_node([]),
+        analyze=stub_analyze_node(),
         review=scripted_review_node(["revise", "revise", "approved"]),
     )
 
@@ -85,6 +97,7 @@ async def test_stops_at_max_iterations_when_the_reviewer_never_approves(config):
         capped,
         plan=stub_plan_node,
         code=counting_code_node(calls),
+        analyze=stub_analyze_node(),
         review=scripted_review_node(["revise"] * 10),
     )
 
@@ -102,6 +115,7 @@ async def test_stops_immediately_when_the_code_node_reports_an_error(config):
         config,
         plan=stub_plan_node,
         code=failing_code,
+        analyze=stub_analyze_node(),
         review=scripted_review_node(["revise"] * 10),
     )
 
@@ -109,3 +123,65 @@ async def test_stops_immediately_when_the_code_node_reports_an_error(config):
 
     assert final["error"] == "CLINotFoundError: no claude"
     assert final["iteration"] == 1
+
+
+# ---- the static analysis gate --------------------------------------------
+
+async def test_complex_analysis_returns_to_the_coder_without_paying_the_reviewer(config):
+    code_calls: list = []
+    reviewed = []
+
+    async def counting_review(state, config, **_):
+        reviewed.append(1)
+        return {"verdict": "approved", "feedback": ""}
+
+    capped = config.__class__(**{**config.__dict__, "max_iterations": 2})
+    graph = build_graph(
+        capped,
+        plan=stub_plan_node,
+        code=counting_code_node(code_calls),
+        analyze=stub_analyze_node("complex"),
+        review=counting_review,
+    )
+
+    final = await graph.ainvoke(new_state("do it"))
+
+    assert len(code_calls) == 2, "complex analysis should drive another coding pass"
+    assert reviewed == [], "the reviewer must be skipped entirely when analysis fails"
+    assert final["analysis_verdict"] == "complex"
+
+
+async def test_clean_analysis_reaches_the_reviewer(config):
+    reviewed = []
+
+    async def counting_review(state, config, **_):
+        reviewed.append(1)
+        return {"verdict": "approved", "feedback": ""}
+
+    graph = build_graph(
+        config,
+        plan=stub_plan_node,
+        code=counting_code_node([]),
+        analyze=stub_analyze_node("clean"),
+        review=counting_review,
+    )
+
+    final = await graph.ainvoke(new_state("do it"))
+
+    assert reviewed == [1]
+    assert final["verdict"] == "approved"
+
+
+async def test_analysis_runs_on_every_coding_pass(config):
+    analysed: list = []
+    graph = build_graph(
+        config,
+        plan=stub_plan_node,
+        code=counting_code_node([]),
+        analyze=stub_analyze_node("clean", analysed),
+        review=scripted_review_node(["revise", "approved"]),
+    )
+
+    await graph.ainvoke(new_state("do it"))
+
+    assert len(analysed) == 2, "each coding pass should be re-analysed"
