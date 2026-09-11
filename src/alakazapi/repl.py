@@ -7,7 +7,7 @@ from typing import Any, Callable
 
 from .config import RunConfig
 from .graph import build_graph
-from .render import BOLD, DIM, RESET, render_event, render_summary
+from .render import BOLD, DIM, RED, RESET, render_event, render_summary
 from .state import PipelineState, new_state
 
 BANNER = f"""{BOLD}AlakazAPI{RESET} {DIM}— plan → code → analyze → review{RESET}
@@ -44,6 +44,12 @@ async def run_turn(
                 final = payload
     except (KeyboardInterrupt, asyncio.CancelledError):
         out(f"{DIM}  interrupted{RESET}")
+        return None
+    except Exception as exc:
+        # Deliberately broad. This is the top-level loop: a bad API key, a
+        # network blip, or any node raising must return the user to the prompt
+        # rather than take the session down with it.
+        out(f"{RED}  {type(exc).__name__}: {exc}{RESET}")
         return None
 
     if final is not None:

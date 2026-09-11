@@ -64,3 +64,38 @@ async def test_a_cancelled_turn_reports_rather_than_propagating():
 
     assert final is None
     assert any("interrupted" in line.lower() for line in lines)
+
+
+async def test_a_failing_turn_reports_rather_than_killing_the_repl():
+    """A bad API key, a network blip, or a node raising must return the user to
+    the prompt — the REPL is a top-level loop and has nowhere to escalate to."""
+
+    class ExplodingGraph:
+        def astream(self, *_a, **_k):
+            async def _gen():
+                raise RuntimeError("Error code: 401 - API key is invalid.")
+                yield  # pragma: no cover
+
+            return _gen()
+
+    lines: list[str] = []
+
+    final = await run_turn(ExplodingGraph(), "do it", out=lines.append)
+
+    assert final is None
+    assert any("401" in line for line in lines), "the user needs to see what went wrong"
+
+
+async def test_a_failing_turn_names_the_error_type():
+    class ExplodingGraph:
+        def astream(self, *_a, **_k):
+            async def _gen():
+                raise ValueError("bad config")
+                yield  # pragma: no cover
+
+            return _gen()
+
+    lines: list[str] = []
+    await run_turn(ExplodingGraph(), "do it", out=lines.append)
+
+    assert any("ValueError" in line for line in lines)
