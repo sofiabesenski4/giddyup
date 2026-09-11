@@ -80,6 +80,36 @@ COMPLEX_RUBY = '''class InvoiceProcessor
 end
 '''
 
+# The tangled version above, refactored. Scores inside both default gates, so a
+# run using the improving stub converges instead of exhausting its iterations.
+REFACTORED_RUBY = """# frozen_string_literal: true
+
+# Calculates invoice totals for a single region.
+class InvoiceProcessor
+  RATES = { "CA" => 0.13, "US" => 0.07 }.freeze
+
+  def initialize(region:, exempt: false)
+    @region = region
+    @exempt = exempt
+  end
+
+  def process(items)
+    subtotal = items.sum { |item| item.fetch(:amount, 0) }
+    tax = tax_for(subtotal)
+
+    { total: subtotal, tax: tax, grand: subtotal + tax }
+  end
+
+  private
+
+  def tax_for(subtotal)
+    return 0 if @exempt
+
+    (subtotal * RATES.fetch(@region, 0)).round(2)
+  end
+end
+"""
+
 
 def _write(
     state: PipelineState,
@@ -139,7 +169,35 @@ async def complex_code_node(
     )
 
 
-STUBS = {"clean": clean_code_node, "complex": complex_code_node}
+async def improving_code_node(
+    state: PipelineState,
+    config: RunConfig,
+    emit: Callable[[dict], None] | None = None,
+    **_ignored,
+) -> dict:
+    """Produce tangled Ruby first, then refactor it once analysis pushes back.
+
+    This is the convergence case: the first pass fails the gate, the second
+    replaces the same file with a clean version, and the run reaches the
+    reviewer instead of exhausting its iterations.
+    """
+    first_pass = state.get("iteration", 0) == 0
+    source = COMPLEX_RUBY if first_pass else REFACTORED_RUBY
+    summary = (
+        "Wrote invoice_processor.rb with a process method handling all the tax cases."
+        if first_pass
+        else "Refactored invoice_processor.rb: extracted tax_for, replaced the nested "
+        "conditionals with a rates table."
+    )
+
+    return _write(state, config, "invoice_processor.rb", source, summary, emit)
+
+
+STUBS = {
+    "clean": clean_code_node,
+    "complex": complex_code_node,
+    "improving": improving_code_node,
+}
 
 
 def stub_for(name: str):

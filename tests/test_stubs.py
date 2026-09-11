@@ -82,3 +82,52 @@ async def test_stubs_emit_events_like_the_real_node(repo_config):
     await clean_code_node(new_state("x"), repo_config, emit=events.append)
 
     assert {e["type"] for e in events} == {"text", "tool"}
+
+
+# ---- the improving stub --------------------------------------------------
+
+from alakazapi.nodes.stubs import improving_code_node  # noqa: E402
+
+
+async def test_improving_stub_starts_out_complex(tmp_path, repo_config):
+    await improving_code_node(new_state("x"), repo_config)
+
+    source = (tmp_path / "invoice_processor.rb").read_text()
+    assert "elsif opts[:region]" in source, "the first pass should be the tangled version"
+
+
+async def test_improving_stub_rewrites_cleanly_on_the_second_pass(tmp_path, repo_config):
+    state = new_state("x")
+    await improving_code_node(state, repo_config)
+
+    state["iteration"] = 1
+    state["feedback"] = "average method complexity is 80.6 (limit 20.0)"
+    await improving_code_node(state, repo_config)
+
+    source = (tmp_path / "invoice_processor.rb").read_text()
+    assert "elsif opts[:region]" not in source, "the second pass should be refactored"
+
+
+async def test_improving_stub_replaces_the_same_file_rather_than_adding_one(tmp_path, repo_config):
+    state = new_state("x")
+    await improving_code_node(state, repo_config)
+    state["iteration"] = 1
+    await improving_code_node(state, repo_config)
+
+    # A second file would leave the tangled version on disk for the analyzer
+    # to find, and the run could never converge.
+    assert [p.name for p in tmp_path.rglob("*.rb")] == ["invoice_processor.rb"]
+
+
+async def test_improving_stub_acknowledges_the_feedback_it_was_given(repo_config):
+    state = new_state("x")
+    state["iteration"] = 1
+    state["feedback"] = "9 code smells (limit 3)"
+
+    update = await improving_code_node(state, repo_config)
+
+    assert "refactor" in update["transcript"].lower()
+
+
+async def test_stub_for_selects_the_improving_stub():
+    assert stub_for("improving") is improving_code_node

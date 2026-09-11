@@ -31,10 +31,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--session-budget", type=float, default=10.00)
     parser.add_argument(
         "--stub-code",
-        choices=["clean", "complex"],
+        choices=["clean", "complex", "improving"],
         default=None,
-        help="Replace Claude Code with a stub that writes known-clean or "
-        "known-overcomplicated Ruby. Spends no agent tokens.",
+        help="Replace Claude Code with a stub. 'clean' passes analysis and "
+        "reaches the reviewer; 'complex' never improves, so the run loops to "
+        "--max-iterations; 'improving' fails once then refactors, so the run "
+        "converges. Spends no agent tokens.",
     )
     parser.add_argument("--analyzer-url", default="http://localhost:9292")
     parser.add_argument("--flog-average-limit", type=float, default=20.0)

@@ -113,3 +113,55 @@ async def test_the_real_analyzer_measured_the_real_file(repo_config):
     measured = final["analysis"]["files"][0]
     assert measured["flog_average"] > 20, "the tangled stub should score badly on flog"
     assert measured["smells"] > 3
+
+
+# ---- convergence ---------------------------------------------------------
+
+from alakazapi.nodes.stubs import improving_code_node  # noqa: E402
+
+
+async def test_the_refactored_stub_actually_passes_the_real_analyzer(repo_config):
+    """The point of the improving stub is that the second version is genuinely
+    clean by the analyzer's own measure — not merely different."""
+    reviewed: list = []
+    graph = build_graph(
+        repo_config, plan=stub_plan, code=improving_code_node, review=counting_review(reviewed)
+    )
+
+    final = await graph.ainvoke(new_state("build an invoice calculator"))
+
+    assert final["analysis_verdict"] == "clean"
+    assert final["analysis"]["files"][0]["flog_average"] <= 20
+    assert final["analysis"]["files"][0]["smells"] <= 3
+
+
+async def test_the_run_converges_on_the_second_pass(repo_config):
+    reviewed: list = []
+    graph = build_graph(
+        repo_config, plan=stub_plan, code=improving_code_node, review=counting_review(reviewed)
+    )
+
+    final = await graph.ainvoke(new_state("build an invoice calculator"))
+
+    assert final["iteration"] == 2, "one failing pass, then one that passes"
+    assert reviewed == [2], "the reviewer should be reached once, after the refactor"
+    assert final["verdict"] == "approved"
+
+
+async def test_the_failing_first_pass_still_hands_back_violations(repo_config):
+    """Convergence must not skip the feedback step — the coder is told what was
+    wrong before it gets the chance to fix it."""
+    seen: list = []
+
+    async def capture_feedback(state, config, **kwargs):
+        seen.append(state.get("feedback", ""))
+        return await improving_code_node(state, config, **kwargs)
+
+    graph = build_graph(
+        repo_config, plan=stub_plan, code=capture_feedback, review=counting_review([])
+    )
+
+    await graph.ainvoke(new_state("build an invoice calculator"))
+
+    assert seen[0] == "", "nothing to report before the first pass"
+    assert "invoice_processor.rb" in seen[1], "the second pass should see the violations"

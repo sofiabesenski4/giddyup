@@ -49,14 +49,21 @@ into `services/analyzer/vendor/bundle`. No system Ruby, no system gems.
 ## Exercising the pipeline without Claude Code tokens
 
 ```bash
-./bin/analyzer &                                  # terminal 1
-.venv/bin/python -m alakazapi --stub-code clean   # passes analysis, reaches review
-.venv/bin/python -m alakazapi --stub-code complex # fails analysis, loops back to code
+./bin/analyzer &                                     # terminal 1
+.venv/bin/python -m alakazapi --stub-code clean      # passes analysis, reaches review
+.venv/bin/python -m alakazapi --stub-code complex    # fails analysis, loops to max-iterations
+.venv/bin/python -m alakazapi --stub-code improving  # fails once, refactors, converges
 ```
 
-The stubs write real Ruby into the repo, so the analyzer has genuine input. The complex
-stub never improves, which makes the loop back into `code` observable until
-`max_iterations`.
+| Stub | First pass | Then | Ends |
+|---|---|---|---|
+| `clean` | flog 1.6, 1 smell | — | approved after 1 pass |
+| `complex` | flog 80.6, 13 smells | never improves | loops to `--max-iterations` |
+| `improving` | flog 80.6, 13 smells | flog 3.3, 1 smell | approved after 2 passes |
+
+The stubs write real Ruby into the repo, so the analyzer has genuine input. `complex`
+makes the loop back into `code` observable; `improving` shows it converging, replacing
+the same file so the tangled version cannot linger and block the run.
 
 ## Install
 
