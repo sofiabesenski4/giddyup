@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any, Callable
 
+from langgraph.config import get_stream_writer
 from langgraph.graph import END, START, StateGraph
 
 from .config import RunConfig
@@ -37,7 +38,16 @@ def build_graph(
         return await plan(state, config)
 
     async def code_step(state: PipelineState) -> dict:
-        return await code(state, config, emit=emit)
+        # Fall back to LangGraph's custom-stream writer so the REPL sees tool
+        # calls as they happen. It only resolves inside a running graph, hence
+        # the guard — an injected emit (or none at all) still works in tests.
+        writer = emit
+        if writer is None:
+            try:
+                writer = get_stream_writer()
+            except Exception:
+                writer = None
+        return await code(state, config, emit=writer)
 
     async def review_step(state: PipelineState) -> dict:
         return await review(state, config)
