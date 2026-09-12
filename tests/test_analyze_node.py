@@ -9,6 +9,16 @@ def git_repo(path):
     return path
 
 
+def git(repo, *args):
+    """Run git with a throwaway identity so it works on a bare machine."""
+    subprocess.run(
+        ["git", "-c", "user.name=test", "-c", "user.email=test@example.com", *args],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+    )
+
+
 def write(path, name, body="class X\nend\n"):
     f = path / name
     f.parent.mkdir(parents=True, exist_ok=True)
@@ -53,6 +63,60 @@ def test_falls_back_to_all_ruby_files_outside_a_git_repo(tmp_path):
     write(tmp_path, "a.rb")
 
     assert [f["path"] for f in collect_ruby_files(tmp_path)] == ["a.rb"]
+
+
+def test_changeset_resolves_paths_when_repo_is_a_subdirectory(tmp_path):
+    project = tmp_path / "project"
+    (project / "lib").mkdir(parents=True)
+    git(project, "init")
+    (project / "README.md").write_text("base\n")
+    git(project, "add", "-A")
+    git(project, "commit", "-m", "base")
+
+    (project / "lib" / "invoice.rb").write_text("class Invoice; end\n")
+
+    files = collect_ruby_files(project / "lib")
+
+    assert [f["path"] for f in files] == ["invoice.rb"]
+
+
+def test_changeset_falls_back_to_scanning_when_the_parent_repo_ignores_the_directory(tmp_path):
+    parent = tmp_path / "parent"
+    parent.mkdir()
+    git(parent, "init")
+    (parent / ".gitignore").write_text("workspace/\n")
+    git(parent, "add", "-A")
+    git(parent, "commit", "-m", "base")
+
+    sandbox = parent / "workspace"
+    sandbox.mkdir()
+    (sandbox / "invoice.rb").write_text("class Invoice; end\n")
+
+    files = collect_ruby_files(sandbox)
+
+    assert [f["path"] for f in files] == ["invoice.rb"]
+
+
+def test_changeset_in_a_nested_repo_excludes_the_committed_baseline(tmp_path):
+    parent = tmp_path / "parent"
+    parent.mkdir()
+    git(parent, "init")
+    (parent / ".gitignore").write_text("workspace/\n")
+    git(parent, "add", "-A")
+    git(parent, "commit", "-m", "base")
+
+    sandbox = parent / "workspace"
+    sandbox.mkdir()
+    git(sandbox, "init")
+    (sandbox / "catalog.rb").write_text("class Catalog; end\n")
+    git(sandbox, "add", "-A")
+    git(sandbox, "commit", "-m", "baseline")
+
+    (sandbox / "invoice.rb").write_text("class Invoice; end\n")
+
+    files = collect_ruby_files(sandbox)
+
+    assert [f["path"] for f in files] == ["invoice.rb"]
 
 
 # ---- the node ------------------------------------------------------------
