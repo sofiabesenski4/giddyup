@@ -81,10 +81,20 @@ def _is_generated_sandbox(path: Path) -> bool:
 
     The root commit (not HEAD) is what we check, so a sandbox that has grown
     further commits on top of the baseline is still recognised as ours.
+
+    A `.git` entry existing under `path` is not proof that `path` itself is a
+    repository root: if it is not a valid repo (e.g. an empty directory), git
+    discovery walks UP to an enclosing repository instead. We must confirm the
+    discovered toplevel IS `path` before trusting anything git reports here —
+    otherwise an enclosing generated sandbox's root commit can make an
+    unrelated, non-empty subdirectory look like one of ours.
     """
     if not (path / ".git").exists():
         return False
     try:
+        toplevel = _git_output(path, "rev-parse", "--show-toplevel")
+        if Path(toplevel).resolve() != path.resolve():
+            return False
         root_sha = _git_output(path, "rev-list", "--max-parents=0", "HEAD").splitlines()
         if not root_sha:
             return False
@@ -109,7 +119,8 @@ def create_sandbox(path: Path, force: bool = False) -> Path:
         if _is_generated_sandbox(path):
             if not force:
                 raise ValueError(
-                    f"{path} is already a git repository; pass force=True to replace it"
+                    f"{path} is already a git repository; pass --force "
+                    "(or force=True) to replace it"
                 )
             shutil.rmtree(path)
         else:

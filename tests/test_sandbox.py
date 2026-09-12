@@ -85,6 +85,20 @@ def test_force_refuses_on_a_non_git_non_empty_directory(tmp_path):
     assert (stray / "keep.txt").exists()
 
 
+def test_force_refuses_to_delete_a_subdirectory_of_a_generated_sandbox(tmp_path):
+    sandbox = create_sandbox(tmp_path / "sandbox")
+    subdir = sandbox / "userdata"
+    subdir.mkdir()
+    sentinel = subdir / "precious.txt"
+    sentinel.write_text("keep me\n")
+    (subdir / ".git").mkdir()
+
+    with pytest.raises(ValueError, match="not a generated sandbox"):
+        create_sandbox(subdir, force=True)
+
+    assert sentinel.exists()
+
+
 def test_force_still_succeeds_on_a_real_sandbox_after_an_extra_commit(tmp_path):
     sandbox = create_sandbox(tmp_path / "sandbox")
     (sandbox / "extra.rb").write_text("class Extra; end\n")
