@@ -14,7 +14,7 @@ from .repl import repl
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        prog="alakazapi",
+        prog="giddyup",
         description="A LangGraph pipeline that uses Claude Code as an executing node.",
     )
     parser.add_argument(

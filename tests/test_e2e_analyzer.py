@@ -14,9 +14,9 @@ import urllib.request
 
 import pytest
 
-from alakazapi.graph import build_graph
-from alakazapi.nodes.stubs import clean_code_node, complex_code_node
-from alakazapi.state import new_state
+from giddyup.graph import build_graph
+from giddyup.nodes.stubs import clean_code_node, complex_code_node
+from giddyup.state import new_state
 
 ANALYZER_URL = "http://localhost:9292"
 
@@ -117,7 +117,7 @@ async def test_the_real_analyzer_measured_the_real_file(repo_config):
 
 # ---- convergence ---------------------------------------------------------
 
-from alakazapi.nodes.stubs import improving_code_node  # noqa: E402
+from giddyup.nodes.stubs import improving_code_node  # noqa: E402
 
 
 async def test_the_refactored_stub_actually_passes_the_real_analyzer(repo_config):

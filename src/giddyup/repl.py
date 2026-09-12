@@ -10,7 +10,7 @@ from .graph import build_graph
 from .render import BOLD, DIM, RED, RESET, render_event, render_summary
 from .state import PipelineState, new_state
 
-BANNER = f"""{BOLD}AlakazAPI{RESET} {DIM}— plan → code → analyze → review{RESET}
+BANNER = f"""{BOLD}Giddyup{RESET} {DIM}— plan → code → analyze → review{RESET}
 {DIM}repo:     {{repo}}
 coder:    {{coder}}
 analyzer: {{analyzer}}

@@ -1,5 +1,5 @@
-from alakazapi.graph import build_graph
-from alakazapi.state import new_state
+from giddyup.graph import build_graph
+from giddyup.state import new_state
 
 
 def counting_code_node(calls: list):

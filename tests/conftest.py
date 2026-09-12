@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 from claude_agent_sdk import AssistantMessage, ResultMessage, TextBlock, ToolUseBlock
 
-from alakazapi.config import RunConfig
+from giddyup.config import RunConfig
 
 
 @pytest.fixture

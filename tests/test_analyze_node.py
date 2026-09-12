@@ -1,7 +1,7 @@
 import subprocess
 
-from alakazapi.nodes.analyze import analyze_node, collect_ruby_files, format_violations
-from alakazapi.state import new_state
+from giddyup.nodes.analyze import analyze_node, collect_ruby_files, format_violations
+from giddyup.state import new_state
 
 
 def git_repo(path):

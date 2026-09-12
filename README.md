@@ -1,4 +1,4 @@
-# AlakazAPI
+# Giddyup
 
 A LangGraph pipeline that uses **Claude Code** (via `claude-agent-sdk`) as an executing
 node, driven from a terminal REPL.
@@ -51,9 +51,9 @@ Python either — the interpreter comes from mise and the packages from `.venv`.
 
 ```bash
 mise run analyzer                                          # terminal 1
-mise exec -- python -m alakazapi --stub-code clean         # passes analysis, reaches review
-mise exec -- python -m alakazapi --stub-code complex       # fails analysis, loops to max-iterations
-mise exec -- python -m alakazapi --stub-code improving     # fails once, refactors, converges
+mise exec -- python -m giddyup --stub-code clean         # passes analysis, reaches review
+mise exec -- python -m giddyup --stub-code complex       # fails analysis, loops to max-iterations
+mise exec -- python -m giddyup --stub-code improving     # fails once, refactors, converges
 ```
 
 | Stub | First pass | Then | Ends |
@@ -91,7 +91,7 @@ The `claude` CLI must be on your PATH — the Agent SDK runs it as a subprocess.
 ## Run
 
 ```bash
-mise exec -- python -m alakazapi --repo ~/some/project
+mise exec -- python -m giddyup --repo ~/some/project
 ```
 
 With no `--repo`, it defaults to a local `./workspace/` sandbox directory.

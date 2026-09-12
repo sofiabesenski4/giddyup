@@ -1,6 +1,6 @@
-from alakazapi.config import RunConfig
-from alakazapi.routing import decide_after_review
-from alakazapi.state import new_state
+from giddyup.config import RunConfig
+from giddyup.routing import decide_after_review
+from giddyup.state import new_state
 from pathlib import Path
 
 
@@ -42,7 +42,7 @@ def test_finishes_immediately_when_a_node_recorded_an_error():
 
 # ---- the analysis gate ---------------------------------------------------
 
-from alakazapi.routing import decide_after_analysis  # noqa: E402
+from giddyup.routing import decide_after_analysis  # noqa: E402
 
 
 def test_complex_code_goes_straight_back_to_the_coder_skipping_the_reviewer():

@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from alakazapi.config import RunConfig
+from giddyup.config import RunConfig
 
 
 def test_defaults_to_local_workspace_sandbox_when_no_repo_given(tmp_path):

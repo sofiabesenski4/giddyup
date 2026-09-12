@@ -1,6 +1,6 @@
-from alakazapi.nodes.plan import plan_node
-from alakazapi.nodes.review import Review, review_node
-from alakazapi.state import new_state
+from giddyup.nodes.plan import plan_node
+from giddyup.nodes.review import Review, review_node
+from giddyup.state import new_state
 
 
 def recorder(returns):
