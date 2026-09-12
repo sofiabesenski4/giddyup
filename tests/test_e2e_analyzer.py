@@ -176,8 +176,16 @@ async def test_the_failing_first_pass_still_hands_back_violations(repo_config):
 def sandbox_config(tmp_path, config):
     """A generated sandbox: its own git repo, with a clean baseline committed.
 
-    This is the production topology — a repository the enclosing checkout
-    ignores — which tmp_path alone cannot reproduce.
+    This is the topology the tool runs against in production — a real git
+    repository with prior history — which bare tmp_path cannot reproduce. The
+    specs below prove that the committed baseline does not leak into the
+    agent's changeset via the normal `git status` path: the gate judges the
+    diff, not the directory.
+
+    It does not exercise the ignored-directory fallback in `_git_changed` —
+    `create_sandbox` runs `git init`, so this repo is its own toplevel and that
+    branch can't fire through it. That path is covered separately by
+    `tests/test_analyze_node.py::test_changeset_falls_back_to_scanning_when_the_parent_repo_ignores_the_directory`.
     """
     sandbox = create_sandbox(tmp_path / "sandbox")
     return config.__class__(
