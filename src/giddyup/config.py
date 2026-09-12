@@ -30,20 +30,26 @@ class RunConfig:
     smells_limit: int = 3
 
     @classmethod
-    def create(cls, repo: Path | None, base_dir: Path | None = None, **overrides) -> RunConfig:
-        """Build a config, defaulting to a local sandbox when no repo is named.
+    def create(cls, repo: Path | None, **overrides) -> RunConfig:
+        """Build a config for an explicitly named repository.
 
-        Falling back to a dedicated ``workspace/`` directory rather than the cwd
-        means a run started without ``--repo`` cannot touch anything real.
+        There is deliberately no default. The code node runs with
+        ``bypassPermissions``, so the repository it works in has to be a choice
+        the operator made rather than one this function invented — and a
+        silently invented sandbox is how the analysis gate came to be dead by
+        default, since the enclosing repository ignored it.
         """
-        base = Path(base_dir) if base_dir is not None else Path.cwd()
-
         if repo is None:
-            resolved = base / "workspace"
-            resolved.mkdir(parents=True, exist_ok=True)
-        else:
-            resolved = Path(repo).expanduser()
-            if not resolved.is_dir():
-                raise ValueError(f"--repo path does not exist or is not a directory: {resolved}")
+            raise ValueError(
+                "--repo is required: name the repository this session will "
+                "contribute to.\n"
+                "To practise against a throwaway repository instead:\n"
+                "    mise run sandbox\n"
+                "    mise exec -- python -m giddyup --repo ./workspace"
+            )
+
+        resolved = Path(repo).expanduser()
+        if not resolved.is_dir():
+            raise ValueError(f"--repo path does not exist or is not a directory: {resolved}")
 
         return cls(repo=resolved, **overrides)

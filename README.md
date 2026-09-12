@@ -50,10 +50,10 @@ Python either — the interpreter comes from mise and the packages from `.venv`.
 ## Exercising the pipeline without Claude Code tokens
 
 ```bash
-mise run analyzer                                          # terminal 1
-mise exec -- python -m giddyup --stub-code clean         # passes analysis, reaches review
-mise exec -- python -m giddyup --stub-code complex       # fails analysis, loops to max-iterations
-mise exec -- python -m giddyup --stub-code improving     # fails once, refactors, converges
+mise run analyzer                                                       # terminal 1
+mise exec -- python -m giddyup --repo ./workspace --stub-code clean     # passes analysis, reaches review
+mise exec -- python -m giddyup --repo ./workspace --stub-code complex   # fails analysis, loops to max-iterations
+mise exec -- python -m giddyup --repo ./workspace --stub-code improving # fails once, refactors, converges
 ```
 
 | Stub | First pass | Then | Ends |
@@ -94,7 +94,20 @@ The `claude` CLI must be on your PATH — the Agent SDK runs it as a subprocess.
 mise exec -- python -m giddyup --repo ~/some/project
 ```
 
-With no `--repo`, it defaults to a local `./workspace/` sandbox directory.
+`--repo` is required. The code node runs Claude Code with `bypassPermissions`
+against whatever it names, so the target is always an explicit choice.
+
+To practise against a throwaway repository instead of real code:
+
+```bash
+mise run sandbox                                           # creates ./workspace
+mise exec -- python -m giddyup --repo ./workspace
+```
+
+The sandbox is its own git repository with a clean Ruby baseline already
+committed. That baseline is what makes the analysis gate meaningful: everything
+the agent writes shows up as a change against it, so the gate judges the agent's
+diff rather than the whole directory.
 
 ## Safety
 
