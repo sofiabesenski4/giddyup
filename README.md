@@ -28,7 +28,7 @@ A Rack/Puma service in `services/analyzer/` that uses flog and reek as Ruby *lib
 rather than shelling out to their CLIs. Start it with:
 
 ```bash
-./bin/analyzer
+mise run analyzer
 ```
 
 `POST /analyze` takes file contents, not paths, so the boundary makes no
@@ -44,15 +44,16 @@ The 3-smell allowance is deliberate: clean Ruby still scores 1 (`IrresponsibleMo
 so a zero gate would reject good code.
 
 Ruby is pinned with **mise** (`mise.toml`, 4.0.6) and gems are vendored with **bundler**
-into `services/analyzer/vendor/bundle`. No system Ruby, no system gems.
+into `services/analyzer/vendor/bundle`. No system Ruby, no system gems, and no system
+Python either — the interpreter comes from mise and the packages from `.venv`.
 
 ## Exercising the pipeline without Claude Code tokens
 
 ```bash
-./bin/analyzer &                                     # terminal 1
-.venv/bin/python -m alakazapi --stub-code clean      # passes analysis, reaches review
-.venv/bin/python -m alakazapi --stub-code complex    # fails analysis, loops to max-iterations
-.venv/bin/python -m alakazapi --stub-code improving  # fails once, refactors, converges
+mise run analyzer                                          # terminal 1
+mise exec -- python -m alakazapi --stub-code clean         # passes analysis, reaches review
+mise exec -- python -m alakazapi --stub-code complex       # fails analysis, loops to max-iterations
+mise exec -- python -m alakazapi --stub-code improving     # fails once, refactors, converges
 ```
 
 | Stub | First pass | Then | Ends |
@@ -67,18 +68,30 @@ the same file so the tangled version cannot linger and block the run.
 
 ## Install
 
+Toolchain versions are pinned in `mise.toml` (Python 3.14.7, Ruby 4.0.6):
+
 ```bash
-python3 -m venv .venv
-.venv/bin/pip install -e ".[dev]"
+mise install        # fetch both interpreters
+mise run setup      # install Python deps into the mise-managed venv
 export ANTHROPIC_API_KEY=sk-ant-...
 ```
+
+mise creates and activates `.venv` itself, so there is no manual `python -m venv`
+step and no `.venv/bin/` prefixes below. A venv is still required — mise pins the
+*interpreter* but has no package isolation of its own, so without one `pip` would
+write into the shared 3.14.7 install every other project using it would see. It is
+the counterpart of bundler's `vendor/bundle`, not of mise itself.
+
+If you run `eval "$(mise activate zsh)"` in your shell, plain `python` and `pytest`
+resolve correctly inside this directory. Otherwise prefix commands with
+`mise exec --`, or use the `mise run` tasks below.
 
 The `claude` CLI must be on your PATH — the Agent SDK runs it as a subprocess.
 
 ## Run
 
 ```bash
-.venv/bin/python -m alakazapi --repo ~/some/project
+mise exec -- python -m alakazapi --repo ~/some/project
 ```
 
 With no `--repo`, it defaults to a local `./workspace/` sandbox directory.
@@ -103,9 +116,11 @@ silently inherit your global MCP servers and skills.
 ## Tests
 
 ```bash
-.venv/bin/python -m pytest                                    # python
-cd services/analyzer && mise exec -- bundle exec rake test    # ruby
+mise run test        # python
+mise run test:ruby   # ruby
 ```
+
+`mise tasks` lists everything: `setup`, `analyzer`, `test`, `test:ruby`.
 
 No test spends money — the Claude Code SDK is faked at its boundary. The end-to-end
 tests in `tests/test_e2e_analyzer.py` run against the *real* analyzer over HTTP and skip

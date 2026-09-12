@@ -1,2 +1,27 @@
 [tools]
+python = "3.14.7"
 ruby = "4.0.6"
+
+# mise creates and activates .venv itself, so no manual `python -m venv` and no
+# `.venv/bin/` prefixes. A venv is still required: mise pins the interpreter but
+# has no package isolation of its own, and without one pip would write into the
+# shared 3.14.7 install that every other project using it would also see.
+[env]
+_.python.venv = { path = ".venv", create = true }
+
+[tasks.setup]
+description = "Install Python deps into the mise-managed venv"
+run = "pip install -e '.[dev]'"
+
+[tasks.analyzer]
+description = "Start the Ruby static-analysis service"
+run = "./bin/analyzer"
+
+[tasks.test]
+description = "Run the Python suite"
+run = "python -m pytest"
+
+[tasks."test:ruby"]
+description = "Run the analyzer's Ruby suite"
+dir = "services/analyzer"
+run = "bundle exec rake test"
