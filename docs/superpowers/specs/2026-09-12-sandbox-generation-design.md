@@ -113,8 +113,9 @@ root rather than onto `config.repo`, then keeps only the paths lying under
 
 This fixes fault 2 in every topology — nested repository, subdirectory of a real
 repository, or plain repository — rather than only in the sandbox case. `None` is
-returned only when there is genuinely no repository, preserving the existing
-`rglob` fallback.
+returned both when there is genuinely no repository and when an enclosing
+repository ignores the directory, preserving the existing `rglob` fallback in
+either case.
 
 ## Testing
 

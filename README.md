@@ -50,6 +50,7 @@ Python either — the interpreter comes from mise and the packages from `.venv`.
 ## Exercising the pipeline without Claude Code tokens
 
 ```bash
+mise run sandbox                                                        # creates ./workspace
 mise run analyzer                                                       # terminal 1
 mise exec -- python -m giddyup --repo ./workspace --stub-code clean     # passes analysis, reaches review
 mise exec -- python -m giddyup --repo ./workspace --stub-code complex   # fails analysis, loops to max-iterations
