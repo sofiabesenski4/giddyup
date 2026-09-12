@@ -53,7 +53,7 @@ is the intended trade: cheap objective gating before expensive subjective review
 
 No system Ruby and no system gems.
 
-- `mise.toml` at the repo root pins Ruby 3.4.8.
+- `mise.toml` at the repo root pins Ruby 4.0.6.
 - `.ruby-version` holds the same value; the service's Gemfile reads it via
   `ruby file: "../../.ruby-version"` so the two cannot drift.
 - `services/analyzer/.bundle/config` sets `BUNDLE_PATH: vendor/bundle`, keeping

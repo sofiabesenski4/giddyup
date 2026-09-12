@@ -43,7 +43,7 @@ definition of "clean":
 The 3-smell allowance is deliberate: clean Ruby still scores 1 (`IrresponsibleModule`),
 so a zero gate would reject good code.
 
-Ruby is pinned with **mise** (`mise.toml`, 3.4.8) and gems are vendored with **bundler**
+Ruby is pinned with **mise** (`mise.toml`, 4.0.6) and gems are vendored with **bundler**
 into `services/analyzer/vendor/bundle`. No system Ruby, no system gems.
 
 ## Exercising the pipeline without Claude Code tokens
