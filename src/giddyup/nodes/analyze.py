@@ -51,18 +51,32 @@ def _git_changed(repo: Path) -> list[Path] | None:
         if ignored is not None and ignored.returncode == 0:
             return None
 
-    status = run("status", "--porcelain", "--untracked-files=all")
+    status = run("status", "--porcelain", "-z", "--untracked-files=all")
     if status is None or status.returncode != 0:
         return None
 
+    # -z gives NUL-terminated records with raw, unquoted bytes, which sidesteps
+    # the C-quoting `git status` otherwise applies to paths with non-ASCII or
+    # special characters. It also changes how renames/copies are reported: the
+    # NEW path is its own record, immediately followed by a second record
+    # holding the OLD path (no longer a single "old -> new" line to split on).
+    # That old-path record must be consumed and discarded here.
+    fields = status.stdout.split("\0")
+    if fields and fields[-1] == "":
+        fields.pop()
+
     paths = []
-    for line in status.stdout.splitlines():
-        if len(line) > 3:
-            # Rename entries read "R  old -> new"; the new path is what changed.
-            rel = line[3:].split(" -> ")[-1].strip().strip('"')
-            absolute = (root / rel).resolve()
-            if absolute == repo or repo in absolute.parents:
-                paths.append(absolute)
+    i = 0
+    while i < len(fields):
+        field = fields[i]
+        code, rel = field[:2], field[3:]
+        if code[0] in "RC" or code[1] in "RC":
+            i += 2  # skip the old-path record that follows a rename/copy
+        else:
+            i += 1
+        absolute = (root / rel).resolve()
+        if absolute == repo or repo in absolute.parents:
+            paths.append(absolute)
     return paths
 
 
@@ -70,8 +84,9 @@ def collect_ruby_files(repo: Path) -> list[dict[str, str]]:
     """Gather the Ruby the coding pass actually touched.
 
     Judging the whole codebase would punish the agent for pre-existing code, so
-    prefer git's view of what changed and fall back to a full scan only outside
-    a repository.
+    prefer git's view of what changed and fall back to a full scan when there
+    is no usable git view — either because we are outside a repository, or
+    because an enclosing repository ignores this directory.
     """
     repo = Path(repo).resolve()
     changed = _git_changed(repo)

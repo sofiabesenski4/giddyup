@@ -97,6 +97,26 @@ def test_changeset_falls_back_to_scanning_when_the_parent_repo_ignores_the_direc
     assert [f["path"] for f in files] == ["invoice.rb"]
 
 
+def test_collects_a_file_with_a_non_ascii_name(tmp_path):
+    git_repo(tmp_path)
+    write(tmp_path, "café.rb", "class Cafe\nend\n")
+
+    assert [f["path"] for f in collect_ruby_files(tmp_path)] == ["café.rb"]
+
+
+def test_collects_the_new_path_of_a_rename_not_the_old_one(tmp_path):
+    git_repo(tmp_path)
+    original = write(tmp_path, "old_name.rb", "class Original\nend\n")
+    git(tmp_path, "add", "-A")
+    git(tmp_path, "commit", "-m", "base")
+    git(tmp_path, "mv", "old_name.rb", "new_name.rb")
+
+    files = collect_ruby_files(tmp_path)
+
+    assert [f["path"] for f in files] == ["new_name.rb"]
+    assert not original.exists()
+
+
 def test_changeset_in_a_nested_repo_excludes_the_committed_baseline(tmp_path):
     parent = tmp_path / "parent"
     parent.mkdir()
