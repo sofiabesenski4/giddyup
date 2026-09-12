@@ -14,14 +14,15 @@ from .repl import repl
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        prog="alakazapi",
+        prog="giddyup",
         description="A LangGraph pipeline that uses Claude Code as an executing node.",
     )
     parser.add_argument(
         "--repo",
         type=Path,
         default=None,
-        help="Repository Claude Code works in (default: ./workspace sandbox)",
+        help="Repository Claude Code works in (required). Generate a practice "
+        "one with: mise run sandbox",
     )
     parser.add_argument("--code-model", default=DEFAULT_CODE_MODEL)
     parser.add_argument("--planner-model", default=DEFAULT_PLANNER_MODEL)

@@ -3,11 +3,11 @@ planner/reviewer model calls faked at their boundaries."""
 
 from functools import partial
 
-from alakazapi.graph import build_graph
-from alakazapi.nodes.code import code_node
-from alakazapi.nodes.plan import plan_node
-from alakazapi.nodes.review import Review, review_node
-from alakazapi.state import new_state
+from giddyup.graph import build_graph
+from giddyup.nodes.code import code_node
+from giddyup.nodes.plan import plan_node
+from giddyup.nodes.review import Review, review_node
+from giddyup.state import new_state
 from conftest import assistant, fake_query, result, text, tool_use
 
 

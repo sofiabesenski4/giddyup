@@ -14,9 +14,11 @@ import urllib.request
 
 import pytest
 
-from alakazapi.graph import build_graph
-from alakazapi.nodes.stubs import clean_code_node, complex_code_node
-from alakazapi.state import new_state
+from giddyup.graph import build_graph
+from giddyup.nodes.analyze import _post
+from giddyup.nodes.stubs import clean_code_node, complex_code_node
+from giddyup.sandbox import BASELINE, create_sandbox
+from giddyup.state import new_state
 
 ANALYZER_URL = "http://localhost:9292"
 
@@ -117,7 +119,7 @@ async def test_the_real_analyzer_measured_the_real_file(repo_config):
 
 # ---- convergence ---------------------------------------------------------
 
-from alakazapi.nodes.stubs import improving_code_node  # noqa: E402
+from giddyup.nodes.stubs import improving_code_node  # noqa: E402
 
 
 async def test_the_refactored_stub_actually_passes_the_real_analyzer(repo_config):
@@ -165,3 +167,95 @@ async def test_the_failing_first_pass_still_hands_back_violations(repo_config):
 
     assert seen[0] == "", "nothing to report before the first pass"
     assert "invoice_processor.rb" in seen[1], "the second pass should see the violations"
+
+
+# ---- sandbox topology -----------------------------------------------------
+
+
+@pytest.fixture
+def sandbox_config(tmp_path, config):
+    """A generated sandbox: its own git repo, with a clean baseline committed.
+
+    This is the topology the tool runs against in production — a real git
+    repository with prior history — which bare tmp_path cannot reproduce. The
+    specs below prove that the committed baseline does not leak into the
+    agent's changeset via the normal `git status` path: the gate judges the
+    diff, not the directory.
+
+    It does not exercise the ignored-directory fallback in `_git_changed` —
+    `create_sandbox` runs `git init`, so this repo is its own toplevel and that
+    branch can't fire through it. That path is covered separately by
+    `tests/test_analyze_node.py::test_changeset_falls_back_to_scanning_when_the_parent_repo_ignores_the_directory`.
+    """
+    sandbox = create_sandbox(tmp_path / "sandbox")
+    return config.__class__(
+        **{
+            **config.__dict__,
+            "repo": sandbox,
+            "analyzer_url": ANALYZER_URL,
+            "max_iterations": 3,
+        }
+    )
+
+
+async def test_the_gate_judges_only_the_agents_diff_not_the_baseline(sandbox_config):
+    events: list = []
+    graph = build_graph(
+        sandbox_config,
+        plan=stub_plan,
+        code=clean_code_node,
+        review=counting_review([]),
+        emit=events.append,
+    )
+
+    await graph.ainvoke(new_state("write an invoice calculator"))
+
+    analysis = [e for e in events if e.get("type") == "analysis"]
+    assert analysis[0]["verdict"] == "clean"
+    reported = {f["path"] for f in analysis[0]["files"]}
+    assert reported == {"invoice.rb"}, (
+        f"expected only the agent's file, got {reported} — the committed "
+        "baseline must not be re-judged"
+    )
+
+
+async def test_overcomplicated_ruby_in_a_sandbox_fails_the_gate(sandbox_config):
+    events: list = []
+    graph = build_graph(
+        sandbox_config,
+        plan=stub_plan,
+        code=complex_code_node,
+        review=counting_review([]),
+        emit=events.append,
+    )
+
+    await graph.ainvoke(new_state("write an invoice calculator"))
+
+    analysis = [e for e in events if e.get("type") == "analysis"]
+    assert analysis[0]["verdict"] == "complex"
+    assert {f["path"] for f in analysis[0]["files"]} == {"invoice_processor.rb"}
+
+
+def test_the_generated_baseline_passes_the_analyzer(config):
+    """Guards the constraint that every other test leans on.
+
+    If the baseline ever drifts into violating the thresholds, a failure
+    elsewhere stops being attributable to the coding pass — and in the
+    scan-fallback path the baseline is analysed alongside the agent's work.
+    """
+    report = _post(
+        f"{ANALYZER_URL}/analyze",
+        {
+            "files": [
+                {"path": name, "source": source}
+                for name, source in BASELINE.items()
+                if name.endswith(".rb")
+            ],
+            "thresholds": {
+                "flog_average": config.flog_average_limit,
+                "smells": config.smells_limit,
+            },
+        },
+    )
+
+    assert report["verdict"] == "clean", report

@@ -9,3 +9,6 @@ workspace/
 # Ruby analyzer service
 services/analyzer/vendor/
 services/analyzer/.bundle/vendor/
+
+# Subagent-driven-development scratch (ledger, briefs, review packages)
+.superpowers/

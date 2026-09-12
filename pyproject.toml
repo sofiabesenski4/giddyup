@@ -1,5 +1,5 @@
 [project]
-name = "alakazapi"
+name = "giddyup"
 version = "0.1.0"
 description = "A LangGraph pipeline that uses Claude Code as an executing node"
 requires-python = ">=3.11"
@@ -13,7 +13,7 @@ dependencies = [
 dev = ["pytest>=8.0", "pytest-asyncio>=0.23"]
 
 [project.scripts]
-alakazapi = "alakazapi.__main__:main"
+giddyup = "giddyup.__main__:main"
 
 [build-system]
 requires = ["setuptools>=68"]

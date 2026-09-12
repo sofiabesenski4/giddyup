@@ -1,4 +1,4 @@
-from alakazapi.repl import run_turn
+from giddyup.repl import run_turn
 
 
 class FakeGraph:

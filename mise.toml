@@ -7,11 +7,19 @@ ruby = "4.0.6"
 # has no package isolation of its own, and without one pip would write into the
 # shared 3.14.7 install that every other project using it would also see.
 [env]
+# Secrets live in .env (gitignored) and are loaded by mise rather than a
+# python-dotenv call inside the app, so the Ruby tasks see them too and the
+# package keeps no dependency on how the environment gets populated.
+_.file = ".env"
 _.python.venv = { path = ".venv", create = true }
 
 [tasks.setup]
 description = "Install Python deps into the mise-managed venv"
 run = "pip install -e '.[dev]'"
+
+[tasks.sandbox]
+description = "Generate a practice sandbox repository at ./workspace"
+run = "python -m giddyup.sandbox workspace"
 
 [tasks.analyzer]
 description = "Start the Ruby static-analysis service"

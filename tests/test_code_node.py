@@ -1,8 +1,8 @@
 import pytest
 from claude_agent_sdk import CLINotFoundError
 
-from alakazapi.nodes.code import build_options, code_node
-from alakazapi.state import new_state
+from giddyup.nodes.code import build_options, code_node
+from giddyup.state import new_state
 from conftest import assistant, fake_query, result, text, tool_use
 
 

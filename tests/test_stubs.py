@@ -1,7 +1,7 @@
 import pytest
 
-from alakazapi.nodes.stubs import clean_code_node, complex_code_node, stub_for
-from alakazapi.state import new_state
+from giddyup.nodes.stubs import clean_code_node, complex_code_node, stub_for
+from giddyup.state import new_state
 
 
 @pytest.fixture
@@ -86,7 +86,7 @@ async def test_stubs_emit_events_like_the_real_node(repo_config):
 
 # ---- the improving stub --------------------------------------------------
 
-from alakazapi.nodes.stubs import improving_code_node  # noqa: E402
+from giddyup.nodes.stubs import improving_code_node  # noqa: E402
 
 
 async def test_improving_stub_starts_out_complex(tmp_path, repo_config):

@@ -1,5 +1,5 @@
-from alakazapi.render import render_event, render_summary
-from alakazapi.state import new_state
+from giddyup.render import render_event, render_summary
+from giddyup.state import new_state
 
 
 def test_renders_claude_text_as_plain_output():
