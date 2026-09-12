@@ -59,20 +59,64 @@ end
 # config, without writing to the developer's configuration.
 IDENTITY = ["-c", "user.name=giddyup sandbox", "-c", "user.email=sandbox@giddyup.invalid"]
 
+# The subject of the baseline's root commit. Used both to create the baseline
+# commit and, later, to recognise whether an existing directory IS one of our
+# sandboxes (as opposed to some unrelated repository that happens to live at
+# the requested path) before `force` is allowed to delete anything.
+BASELINE_COMMIT_SUBJECT = "Baseline sandbox app"
+
 
 def _git(repo: Path, *args: str) -> None:
     subprocess.run(["git", *IDENTITY, *args], cwd=repo, check=True, capture_output=True)
 
 
+def _git_output(repo: Path, *args: str) -> str:
+    return subprocess.run(
+        ["git", *args], cwd=repo, check=True, capture_output=True, text=True
+    ).stdout.strip()
+
+
+def _is_generated_sandbox(path: Path) -> bool:
+    """Whether `path` is a git repo whose ROOT commit is our baseline commit.
+
+    The root commit (not HEAD) is what we check, so a sandbox that has grown
+    further commits on top of the baseline is still recognised as ours.
+    """
+    if not (path / ".git").exists():
+        return False
+    try:
+        root_sha = _git_output(path, "rev-list", "--max-parents=0", "HEAD").splitlines()
+        if not root_sha:
+            return False
+        subject = _git_output(path, "log", "-1", "--format=%s", root_sha[0])
+    except subprocess.CalledProcessError:
+        return False
+    return subject == BASELINE_COMMIT_SUBJECT
+
+
 def create_sandbox(path: Path, force: bool = False) -> Path:
-    """Create a git repository with a clean Ruby baseline already committed."""
+    """Create a git repository with a clean Ruby baseline already committed.
+
+    `path` may be missing or empty (proceeds normally), a sandbox this
+    generator made earlier (replaced only when `force=True`), or something
+    else non-empty (always refused — `force` never deletes a directory this
+    generator didn't create).
+    """
     path = Path(path)
-    if (path / ".git").exists():
-        if not force:
+    non_empty = path.exists() and any(path.iterdir())
+
+    if non_empty:
+        if _is_generated_sandbox(path):
+            if not force:
+                raise ValueError(
+                    f"{path} is already a git repository; pass force=True to replace it"
+                )
+            shutil.rmtree(path)
+        else:
             raise ValueError(
-                f"{path} is already a git repository; pass force=True to replace it"
+                f"{path} exists and is not a generated sandbox; remove it "
+                "yourself if you really mean to replace it"
             )
-        shutil.rmtree(path)
 
     path.mkdir(parents=True, exist_ok=True)
     for name, source in BASELINE.items():
@@ -82,7 +126,7 @@ def create_sandbox(path: Path, force: bool = False) -> Path:
 
     _git(path, "init", "--initial-branch=main")
     _git(path, "add", "-A")
-    _git(path, "commit", "-m", "Baseline sandbox app")
+    _git(path, "commit", "-m", BASELINE_COMMIT_SUBJECT)
     return path
 
 
@@ -101,6 +145,9 @@ def main(argv: list[str] | None = None) -> int:
         created = create_sandbox(args.path, force=args.force)
     except ValueError as exc:
         print(str(exc), file=sys.stderr)
+        return 1
+    except subprocess.CalledProcessError as exc:
+        print(f"git command failed: {exc}", file=sys.stderr)
         return 1
 
     print(f"Sandbox ready at {created}")

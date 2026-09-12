@@ -47,3 +47,58 @@ def test_force_replaces_an_existing_sandbox(tmp_path):
     create_sandbox(sandbox, force=True)
 
     assert not (sandbox / "leftover.rb").exists()
+
+
+def make_unrelated_git_repo(path, subject):
+    path.mkdir(parents=True, exist_ok=True)
+    (path / "sentinel.txt").write_text("keep me\n")
+    identity = ["-c", "user.name=someone else", "-c", "user.email=someone@example.invalid"]
+    subprocess.run(
+        ["git", "init", "--initial-branch=main"], cwd=path, check=True, capture_output=True
+    )
+    subprocess.run(
+        ["git", *identity, "add", "-A"], cwd=path, check=True, capture_output=True
+    )
+    subprocess.run(
+        ["git", *identity, "commit", "-m", subject], cwd=path, check=True, capture_output=True
+    )
+
+
+def test_force_refuses_to_delete_a_git_repo_that_is_not_a_generated_sandbox(tmp_path):
+    other = tmp_path / "other"
+    make_unrelated_git_repo(other, "Some unrelated project")
+
+    with pytest.raises(ValueError, match="not a generated sandbox"):
+        create_sandbox(other, force=True)
+
+    assert (other / "sentinel.txt").exists()
+
+
+def test_force_refuses_on_a_non_git_non_empty_directory(tmp_path):
+    stray = tmp_path / "stray"
+    stray.mkdir()
+    (stray / "keep.txt").write_text("keep me\n")
+
+    with pytest.raises(ValueError, match="not a generated sandbox"):
+        create_sandbox(stray, force=True)
+
+    assert (stray / "keep.txt").exists()
+
+
+def test_force_still_succeeds_on_a_real_sandbox_after_an_extra_commit(tmp_path):
+    sandbox = create_sandbox(tmp_path / "sandbox")
+    (sandbox / "extra.rb").write_text("class Extra; end\n")
+    identity = ["-c", "user.name=someone else", "-c", "user.email=someone@example.invalid"]
+    subprocess.run(
+        ["git", *identity, "add", "-A"], cwd=sandbox, check=True, capture_output=True
+    )
+    subprocess.run(
+        ["git", *identity, "commit", "-m", "Extra work"],
+        cwd=sandbox,
+        check=True,
+        capture_output=True,
+    )
+
+    create_sandbox(sandbox, force=True)
+
+    assert not (sandbox / "extra.rb").exists()
