@@ -17,6 +17,10 @@ _.python.venv = { path = ".venv", create = true }
 description = "Install Python deps into the mise-managed venv"
 run = "pip install -e '.[dev]'"
 
+[tasks.sandbox]
+description = "Generate a practice sandbox repository at ./workspace"
+run = "python -m giddyup.sandbox workspace"
+
 [tasks.analyzer]
 description = "Start the Ruby static-analysis service"
 run = "./bin/analyzer"
